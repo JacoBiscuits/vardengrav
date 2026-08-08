@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Rune Door &mdash; Vardengrav</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --stone-dark:#141310;
+    --stone-mid:#221f1a;
+    --stone-panel:#2b271f;
+    --stone-line:#4a4436;
+    --frost:#a9d6e6;
+    --frost-dim:#5f7f8c;
+    --ember:#d9793f;
+    --ember-dim:#8a4a28;
+    --gold:#c9a227;
+    --gold-dim:#7a6019;
+    --parch:#e9e1ca;
+    --parch-dim:#a89e82;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    height:100%;
+    background:var(--stone-dark);
+    color:var(--parch);
+    font-family:'EB Garamond', Georgia, serif;
+    overflow:hidden;
+  }
+  body{
+    position:relative;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100dvh;
+    padding:14px 16px;
+  }
+
+  /* ambient torchlight vignette */
+  .vignette{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    background:radial-gradient(ellipse at 50% 30%, rgba(217,121,63,0.10) 0%, rgba(0,0,0,0) 55%),
+               radial-gradient(ellipse at 50% 100%, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 60%),
+               radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.65) 100%);
+    animation: flicker 6s ease-in-out infinite;
+  }
+  @keyframes flicker{
+    0%,100%{ opacity:1; }
+    45%{ opacity:0.92; }
+    50%{ opacity:1; }
+    72%{ opacity:0.96; }
+  }
+
+  .mist{
+    position:absolute;
+    border-radius:50%;
+    filter:blur(40px);
+    opacity:0.35;
+    pointer-events:none;
+  }
+  .mist.a{ width:420px; height:220px; background:var(--frost-dim); top:180px; left:calc(50% - 380px); animation: drift1 22s ease-in-out infinite; }
+  .mist.b{ width:380px; height:200px; background:var(--frost-dim); top:420px; left:calc(50% + 120px); animation: drift2 26s ease-in-out infinite; }
+  @keyframes drift1{ 0%,100%{ transform:translate(0,0);} 50%{ transform:translate(40px,-25px);} }
+  @keyframes drift2{ 0%,100%{ transform:translate(0,0);} 50%{ transform:translate(-30px,20px);} }
+
+  .stage{
+    position:relative;
+    z-index:1;
+    width:100%;
+    max-width:640px;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+  }
+
+  header{ text-align:center; margin-bottom:4px; flex:0 0 auto; }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:4px;
+    color:var(--gold);
+    text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  h1{
+    font-family:'Cinzel', serif;
+    font-weight:700;
+    font-size:clamp(22px,4.2vh,34px);
+    letter-spacing:3px;
+    margin:0;
+    color:var(--parch);
+    text-shadow:0 0 24px rgba(217,121,63,0.25);
+  }
+
+  .lock-wrap{
+    position:relative;
+    width:min(88vw, 50vh, 460px);
+    flex:0 0 auto;
+    margin:6px 0;
+  }
+  svg{ width:100%; height:auto; display:block; overflow:visible; }
+
+  .ring-group{
+    transition: transform 900ms cubic-bezier(.2,.9,.15,1);
+    transform-origin: 350px 375px;
+  }
+  .ring-group.shake{ animation: shake 480ms ease; }
+  @keyframes shake{
+    0%,100%{ transform-origin:350px 375px; }
+    15%{ transform: rotate(var(--base-rot,0deg)) translateX(-6px); }
+    30%{ transform: rotate(var(--base-rot,0deg)) translateX(6px); }
+    45%{ transform: rotate(var(--base-rot,0deg)) translateX(-5px); }
+    60%{ transform: rotate(var(--base-rot,0deg)) translateX(5px); }
+    75%{ transform: rotate(var(--base-rot,0deg)) translateX(-2px); }
+  }
+
+  .slot-bg{
+    fill: var(--stone-panel);
+    stroke: var(--stone-line);
+    stroke-width:2;
+  }
+  .icon-counter{
+    transition: transform 900ms cubic-bezier(.2,.9,.15,1);
+  }
+  .rune-mark{ color: var(--parch-dim); }
+  .ring-track{
+    fill:none;
+    stroke: var(--stone-line);
+    stroke-width:1.5;
+    stroke-dasharray:3,6;
+  }
+  .hub{
+    fill: var(--stone-mid);
+    stroke: var(--gold-dim);
+    stroke-width:3;
+  }
+  .marker-line{
+    stroke: var(--gold);
+    stroke-width:2.5;
+    stroke-dasharray:8,6;
+  }
+  .marker-arrow{ fill: var(--gold); }
+
+  .lock-wrap.solved .rune-mark{ color: var(--ember); }
+  .lock-wrap.solved .slot-bg{ stroke: var(--ember); }
+  .lock-wrap.solved .hub{ fill: var(--ember-dim); stroke: var(--ember); }
+  .flood{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    background: radial-gradient(circle, rgba(217,121,63,0.55) 0%, rgba(217,121,63,0) 62%);
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 1400ms ease;
+  }
+  .lock-wrap.solved .flood{ opacity:1; }
+
+  .controls{
+    width:100%;
+    max-width:480px;
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:10px;
+    margin-top:6px;
+    flex:0 0 auto;
+  }
+  .ring-control{
+    background:var(--stone-panel);
+    border:1px solid var(--stone-line);
+    border-radius:8px;
+    padding:8px 8px 10px;
+    text-align:center;
+  }
+  .ring-control .label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    letter-spacing:2px;
+    color:var(--parch-dim);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .dial-buttons{ display:flex; justify-content:center; gap:8px; }
+  .dial-btn{
+    width:36px; height:36px;
+    border-radius:50%;
+    border:1px solid var(--gold-dim);
+    background:linear-gradient(180deg, #3a3325, #241f17);
+    color:var(--gold);
+    font-size:16px;
+    line-height:1;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+  }
+  .dial-btn:hover{ border-color:var(--gold); background:linear-gradient(180deg, #453d2c, #2b2519); }
+  .dial-btn:active{ transform:scale(0.92); }
+  .dial-btn:focus-visible{ outline:2px solid var(--frost); outline-offset:2px; }
+
+  .readout{
+    margin-top:10px;
+    min-height:20px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    text-align:center;
+    color:var(--frost);
+    flex:0 0 auto;
+  }
+  .readout.fail{ color:#c46a4a; }
+  .readout.success{ color:var(--ember); }
+
+  .actions{
+    display:flex;
+    gap:12px;
+    margin-top:10px;
+    flex-wrap:wrap;
+    justify-content:center;
+    flex:0 0 auto;
+  }
+  button.primary{
+    font-family:'Cinzel', serif;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--stone-dark);
+    background:linear-gradient(180deg, #e0bc4d, var(--gold));
+    border:none;
+    border-radius:4px;
+    padding:11px 26px;
+    cursor:pointer;
+    box-shadow:0 4px 0 var(--gold-dim), 0 6px 18px rgba(0,0,0,0.4);
+    transition: transform 100ms ease, box-shadow 100ms ease;
+  }
+  button.primary:hover{ transform:translateY(-1px); }
+  button.primary:active{ transform:translateY(2px); box-shadow:0 2px 0 var(--gold-dim), 0 3px 10px rgba(0,0,0,0.4); }
+  button.primary:focus-visible{ outline:2px solid var(--frost); outline-offset:3px; }
+  button.primary:disabled{ opacity:0.5; cursor:default; transform:none; box-shadow:0 4px 0 var(--gold-dim); }
+
+  button.secondary{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--parch-dim);
+    background:transparent;
+    border:1px solid var(--stone-line);
+    border-radius:4px;
+    padding:10px 18px;
+    cursor:pointer;
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+  button.secondary:hover{ border-color:var(--gold-dim); color:var(--gold); }
+  button.secondary:focus-visible{ outline:2px solid var(--frost); outline-offset:3px; }
+
+  .success-banner{
+    margin-top:10px;
+    text-align:center;
+    max-width:420px;
+    opacity:0;
+    max-height:0;
+    overflow:hidden;
+    flex:0 0 auto;
+    transition: opacity 700ms ease 300ms, max-height 700ms ease;
+  }
+  .success-banner.show{ opacity:1; max-height:120px; }
+  .success-banner h2{
+    font-family:'Cinzel', serif;
+    color:var(--ember);
+    font-size:17px;
+    letter-spacing:2px;
+    margin:0 0 4px;
+  }
+  .success-banner p{
+    color:var(--parch-dim);
+    font-size:13px;
+    line-height:1.4;
+    margin:0;
+  }
+
+  @media (max-width:520px){
+    .controls{ grid-template-columns:1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .vignette, .mist, .ring-group, button.primary, .dial-btn{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="vignette"></div>
+<div class="mist a"></div>
+<div class="mist b"></div>
+
+<div class="stage">
+  <header>
+    <div class="eyebrow">Vardengrav</div>
+    <h1>The Rune Door</h1>
+  </header>
+
+  <div class="lock-wrap" id="lockWrap">
+    <div class="flood"></div>
+    <svg viewBox="0 0 700 700" role="img" aria-label="A stone door with three rotating rune rings">
+      <defs>
+        <symbol id="sym-frost" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="25" y1="4" x2="25" y2="46"/>
+          <line x1="15" y1="14" x2="25" y2="20"/>
+          <line x1="35" y1="14" x2="25" y2="20"/>
+          <line x1="15" y1="36" x2="25" y2="30"/>
+          <line x1="35" y1="36" x2="25" y2="30"/>
+        </g></symbol>
+        <symbol id="sym-ember" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M25,8 L35,36 L15,36 Z"/>
+          <circle cx="25" cy="42" r="3" fill="currentColor" stroke="none"/>
+        </g></symbol>
+        <symbol id="sym-hollow" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="25" cy="25" r="15"/>
+          <line x1="10" y1="25" x2="40" y2="25"/>
+        </g></symbol>
+        <symbol id="sym-watch" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="25" cy="25" rx="18" ry="9"/>
+          <line x1="25" y1="10" x2="25" y2="40"/>
+          <circle cx="25" cy="25" r="3" fill="currentColor" stroke="none"/>
+        </g></symbol>
+        <symbol id="sym-thread" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="25,4 15,15 35,25 15,35 25,46"/>
+        </g></symbol>
+        <symbol id="sym-chain" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="19" r="9"/>
+          <circle cx="32" cy="33" r="9"/>
+        </g></symbol>
+        <symbol id="sym-bone" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="25" y1="10" x2="25" y2="40"/>
+          <line x1="14" y1="10" x2="36" y2="10"/>
+          <line x1="14" y1="40" x2="36" y2="40"/>
+        </g></symbol>
+        <symbol id="sym-root" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="25" y1="5" x2="25" y2="28"/>
+          <line x1="25" y1="28" x2="12" y2="46"/>
+          <line x1="25" y1="28" x2="25" y2="48"/>
+          <line x1="25" y1="28" x2="38" y2="46"/>
+        </g></symbol>
+        <symbol id="sym-veil" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="25" y1="5" x2="25" y2="45"/>
+          <line x1="10" y1="15" x2="40" y2="35"/>
+        </g></symbol>
+        <symbol id="sym-ward" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M25,8 L40,40 L10,40 Z"/>
+          <circle cx="25" cy="30" r="3" fill="currentColor" stroke="none"/>
+        </g></symbol>
+        <symbol id="sym-silence" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="10" y1="18" x2="40" y2="18"/>
+          <line x1="10" y1="32" x2="40" y2="32"/>
+          <line x1="12" y1="10" x2="38" y2="40"/>
+        </g></symbol>
+        <symbol id="sym-keeper" viewBox="0 0 50 50"><g class="rune-mark" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="25" y1="8" x2="25" y2="44"/>
+          <line x1="12" y1="16" x2="38" y2="16"/>
+          <circle cx="25" cy="44" r="3" fill="currentColor" stroke="none"/>
+        </g></symbol>
+      </defs>
+
+      <!-- ring tracks -->
+      <circle class="ring-track" cx="350" cy="375" r="215"/>
+      <circle class="ring-track" cx="350" cy="375" r="150"/>
+      <circle class="ring-track" cx="350" cy="375" r="85"/>
+
+      <!-- alignment marker -->
+      <line class="marker-line" x1="350" y1="95" x2="350" y2="640"/>
+      <path class="marker-arrow" d="M338,108 L362,108 L350,128 Z"/>
+
+      <!-- OUTER ring: frost, watch, chain, bone, root, veil -->
+      <g class="ring-group" id="ring-outer">
+        <g class="icon-counter" style="transform-origin:350px 160px"><rect class="slot-bg" x="324" y="134" width="52" height="52" rx="8"/><use href="#sym-frost" x="329" y="139" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:536.19px 267.5px"><rect class="slot-bg" x="510.19" y="241.5" width="52" height="52" rx="8"/><use href="#sym-watch" x="515.19" y="246.5" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:536.19px 482.5px"><rect class="slot-bg" x="510.19" y="456.5" width="52" height="52" rx="8"/><use href="#sym-chain" x="515.19" y="461.5" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:350px 590px"><rect class="slot-bg" x="324" y="564" width="52" height="52" rx="8"/><use href="#sym-bone" x="329" y="569" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:163.81px 482.5px"><rect class="slot-bg" x="137.81" y="456.5" width="52" height="52" rx="8"/><use href="#sym-root" x="142.81" y="461.5" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:163.81px 267.5px"><rect class="slot-bg" x="137.81" y="241.5" width="52" height="52" rx="8"/><use href="#sym-veil" x="142.81" y="246.5" width="42" height="42"/></g>
+      </g>
+
+      <!-- MIDDLE ring: ember, thread, ward, silence, keeper, hollow -->
+      <g class="ring-group" id="ring-mid">
+        <g class="icon-counter" style="transform-origin:350px 225px"><rect class="slot-bg" x="324" y="199" width="52" height="52" rx="8"/><use href="#sym-ember" x="329" y="204" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:479.9px 300px"><rect class="slot-bg" x="453.9" y="274" width="52" height="52" rx="8"/><use href="#sym-thread" x="458.9" y="279" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:479.9px 450px"><rect class="slot-bg" x="453.9" y="424" width="52" height="52" rx="8"/><use href="#sym-ward" x="458.9" y="429" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:350px 525px"><rect class="slot-bg" x="324" y="499" width="52" height="52" rx="8"/><use href="#sym-silence" x="329" y="504" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:220.1px 450px"><rect class="slot-bg" x="194.1" y="424" width="52" height="52" rx="8"/><use href="#sym-keeper" x="199.1" y="429" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:220.1px 300px"><rect class="slot-bg" x="194.1" y="274" width="52" height="52" rx="8"/><use href="#sym-hollow" x="199.1" y="279" width="42" height="42"/></g>
+      </g>
+
+      <!-- INNER ring: hollow, frost, ember, chain, bone, root -->
+      <g class="ring-group" id="ring-inner">
+        <g class="icon-counter" style="transform-origin:350px 290px"><rect class="slot-bg" x="324" y="264" width="52" height="52" rx="8"/><use href="#sym-hollow" x="329" y="269" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:423.6px 332.5px"><rect class="slot-bg" x="397.6" y="306.5" width="52" height="52" rx="8"/><use href="#sym-frost" x="402.6" y="311.5" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:423.6px 417.5px"><rect class="slot-bg" x="397.6" y="391.5" width="52" height="52" rx="8"/><use href="#sym-ember" x="402.6" y="396.5" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:350px 460px"><rect class="slot-bg" x="324" y="434" width="52" height="52" rx="8"/><use href="#sym-chain" x="329" y="439" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:276.4px 417.5px"><rect class="slot-bg" x="250.4" y="391.5" width="52" height="52" rx="8"/><use href="#sym-bone" x="255.4" y="396.5" width="42" height="42"/></g>
+        <g class="icon-counter" style="transform-origin:276.4px 332.5px"><rect class="slot-bg" x="250.4" y="306.5" width="52" height="52" rx="8"/><use href="#sym-root" x="255.4" y="311.5" width="42" height="42"/></g>
+      </g>
+
+      <circle class="hub" cx="350" cy="375" r="36"/>
+    </svg>
+  </div>
+
+  <div class="controls">
+    <div class="ring-control">
+      <div class="label">Outer Ring</div>
+      <div class="dial-buttons">
+        <button class="dial-btn" aria-label="Rotate outer ring counter-clockwise" data-ring="outer" data-dir="-1">&#8634;</button>
+        <button class="dial-btn" aria-label="Rotate outer ring clockwise" data-ring="outer" data-dir="1">&#8635;</button>
+      </div>
+    </div>
+    <div class="ring-control">
+      <div class="label">Middle Ring</div>
+      <div class="dial-buttons">
+        <button class="dial-btn" aria-label="Rotate middle ring counter-clockwise" data-ring="mid" data-dir="-1">&#8634;</button>
+        <button class="dial-btn" aria-label="Rotate middle ring clockwise" data-ring="mid" data-dir="1">&#8635;</button>
+      </div>
+    </div>
+    <div class="ring-control">
+      <div class="label">Inner Ring</div>
+      <div class="dial-buttons">
+        <button class="dial-btn" aria-label="Rotate inner ring counter-clockwise" data-ring="inner" data-dir="-1">&#8634;</button>
+        <button class="dial-btn" aria-label="Rotate inner ring clockwise" data-ring="inner" data-dir="1">&#8635;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="readout" id="readout" aria-live="polite">The runes wait.</div>
+
+  <div class="actions">
+    <button class="primary" id="attemptBtn">Attempt the Door</button>
+    <button class="secondary" id="resetBtn">Scramble Again</button>
+  </div>
+
+  <div class="success-banner" id="successBanner">
+    <h2>Vardengrav Yields</h2>
+    <p>Cold air gives way to something older, and something warmer, moving in the dark ahead.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  const RINGS = {
+    outer: { el: document.getElementById('ring-outer'), topIndex: 0, rotationDeg: 0, correct: 0 },
+    mid:   { el: document.getElementById('ring-mid'),   topIndex: 0, rotationDeg: 0, correct: 0 },
+    inner: { el: document.getElementById('ring-inner'), topIndex: 0, rotationDeg: 0, correct: 0 }
+  };
+
+  const lockWrap = document.getElementById('lockWrap');
+  const readout = document.getElementById('readout');
+  const attemptBtn = document.getElementById('attemptBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const successBanner = document.getElementById('successBanner');
+
+  function applyTransform(key){
+    const r = RINGS[key];
+    const deg = r.rotationDeg;
+    r.el.style.setProperty('--base-rot', deg + 'deg');
+    r.el.style.transform = 'rotate(' + deg + 'deg)';
+    // keep every rune upright regardless of how far the ring has turned
+    r.el.querySelectorAll('.icon-counter').forEach(function(icon){
+      icon.style.transform = 'rotate(' + (-deg) + 'deg)';
+    });
+  }
+
+  function rotate(key, dir){
+    if(lockWrap.classList.contains('solved')) return;
+    const r = RINGS[key];
+    r.topIndex = (r.topIndex + dir + 6) % 6;
+    // accumulate rotation without wrapping, so every click is a single
+    // 60-degree step in the direction pressed, never the long way around
+    r.rotationDeg += -(dir * 60);
+    applyTransform(key);
+  }
+
+  function scramble(){
+    Object.keys(RINGS).forEach(function(key){
+      const r = RINGS[key];
+      let val;
+      do { val = Math.floor(Math.random() * 6); } while (val === 0);
+      r.topIndex = val;
+      r.rotationDeg = -(val * 60);
+      applyTransform(key);
+    });
+  }
+
+  function attempt(){
+    if(lockWrap.classList.contains('solved')) return;
+    const solved = Object.keys(RINGS).every(function(key){
+      return RINGS[key].topIndex === RINGS[key].correct;
+    });
+
+    if(solved){
+      lockWrap.classList.add('solved');
+      readout.textContent = 'The rings turn no more.';
+      readout.className = 'readout success';
+      successBanner.classList.add('show');
+      attemptBtn.disabled = true;
+    } else {
+      readout.textContent = 'The runes reject you.';
+      readout.className = 'readout fail';
+      Object.values(RINGS).forEach(function(r){
+        r.el.classList.remove('shake');
+        void r.el.offsetWidth;
+        r.el.classList.add('shake');
+      });
+      setTimeout(function(){
+        Object.values(RINGS).forEach(function(r){ r.el.classList.remove('shake'); });
+      }, 500);
+    }
+  }
+
+  document.querySelectorAll('.dial-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      rotate(btn.dataset.ring, parseInt(btn.dataset.dir, 10));
+    });
+  });
+
+  attemptBtn.addEventListener('click', attempt);
+  resetBtn.addEventListener('click', function(){
+    lockWrap.classList.remove('solved');
+    successBanner.classList.remove('show');
+    attemptBtn.disabled = false;
+    readout.textContent = 'The runes wait.';
+    readout.className = 'readout';
+    scramble();
+  });
+
+  scramble();
+})();
+</script>
+
+</body>
+</html>
